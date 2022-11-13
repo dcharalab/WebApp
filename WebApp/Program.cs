@@ -9,6 +9,7 @@ using MediatR;
 using System.Reflection;
 using Application;
 using Infrastructure.Repositories.Cached;
+using Microsoft.Net.Http.Headers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,7 +24,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<IpdbContext>(
         (serviceProvider, dbContextOptionsBuilder) =>
         {
-            var databaseOptions = serviceProvider.GetService < IOptions < DatabaseOptions > >()!.Value;
+            var databaseOptions = serviceProvider.GetService<IOptions<DatabaseOptions>>()!.Value;
 
             dbContextOptionsBuilder.UseSqlServer(databaseOptions.ConnectionString, sqlServerAction =>
             {
@@ -34,10 +35,20 @@ builder.Services.AddDbContext<IpdbContext>(
         }
     );
 
-builder.Services.AddSingleton<IIpRepository, IpRepository>();
+builder.Services.AddScoped<IIpRepository, IpRepository>();
 builder.Services.Decorate<IIpRepository, CachedIpRepository>();
 
 builder.Services.AddApplicationModule();
+
+builder.Services.AddStackExchangeRedisCache(options => {
+    options.Configuration = builder.Configuration.GetConnectionString("RedisConnStr");
+});
+
+
+builder.Services.AddHttpClient("ip2c", httpClient =>
+{
+    httpClient.BaseAddress = new Uri(builder.Configuration.GetValue<string>("ip2cURI"));
+});
 
 var app = builder.Build();
 

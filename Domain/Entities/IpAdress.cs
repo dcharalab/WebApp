@@ -11,5 +11,10 @@ namespace Domain.Entities
     {
 
         public string Ip { get; set; } = null!;
+
+        public IpAdress()
+        {
+            this.Id = new Guid();
+        }
     }
 }

@@ -16,7 +16,8 @@ namespace Domain.Entities
         public string ThreeLetterCode { get; set; }
 
 
-        public IpCountry(string name, string twoLetterCode, string threeLetterCode)
+        public IpCountry(Guid id, string name, string twoLetterCode, string threeLetterCode)
+            :base(id)
         {
             Name = name;
             TwoLetterCode = twoLetterCode;

@@ -12,5 +12,6 @@ namespace Domain.Abstractions
     public interface IIpRepository
     {
         public Task<IpCountry?> GetByIpAsync(string ip);
+        public Task AddCountryIpData(string ip, IpCountry ipCountry, bool reachDB);
     }
 }
