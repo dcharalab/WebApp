@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using MediatR;
 using System.Reflection;
 using Application;
+using Infrastructure.Repositories.Cached;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,7 +34,8 @@ builder.Services.AddDbContext<IpdbContext>(
         }
     );
 
-builder.Services.AddScoped<IIpRepository, IpRepository>();
+builder.Services.AddSingleton<IIpRepository, IpRepository>();
+builder.Services.Decorate<IIpRepository, CachedIpRepository>();
 
 builder.Services.AddApplicationModule();
 

@@ -10,9 +10,9 @@ using System.Threading.Tasks;
 
 namespace Application.IPs.Queries.GetIpDetailsByKey
 {
-    public class GetIpDetailsByKeyQueryHandler: IRequestHandler<GetIpDetailsByKeyQuery, IpResponse>
+    public class GetIpDetailsByKeyQueryHandler: IRequestHandler<GetIpDetailsByKeyQuery, IpResponse?>
     {
-        private readonly IIpRepository _ipRepository;
+        private readonly IIpRepository _ipRepository; //CachedIpRepository
         public GetIpDetailsByKeyQueryHandler(IIpRepository ipRepository)
         {
             _ipRepository = ipRepository;
@@ -20,11 +20,8 @@ namespace Application.IPs.Queries.GetIpDetailsByKey
         public async Task<IpResponse?> Handle(GetIpDetailsByKeyQuery request, CancellationToken cancellationToken)
         {
             var countryDetails = await _ipRepository.GetByIpAsync(request.Ip);
-            if (countryDetails == null)
-            {
-                return null;
-            }
-            return new IpResponse(countryDetails);
+
+            return countryDetails != null? new IpResponse(countryDetails):null;
         }
     }
 }
