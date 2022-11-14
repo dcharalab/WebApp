@@ -19,20 +19,20 @@ namespace Application.IPs.Queries.GetIpDetailsByKey
         public GetIpDetailsByKeyQueryHandler(IIpRepository ipRepository, IHttpClientFactory httpClientFactory)
         {
             _ipRepository = ipRepository;
-            _httpClientFactory = httpClientFactory; 
+            _httpClientFactory = httpClientFactory;
         }
         public async Task<IpResponse?> Handle(GetIpDetailsByKeyQuery request, CancellationToken cancellationToken)
         {
             var countryDetails = await _ipRepository.GetByIpAsync(request.Ip);
 
-            if (countryDetails == null) 
+            if (countryDetails == null)
             {
                 //data not in cache or DB, call api
                 var httpClient = _httpClientFactory.CreateClient("ip2c");
-                var httpResponseMessage = await httpClient.GetAsync(request.Ip);
+                var httpResponseMessage = await httpClient.GetAsync(request.Ip, cancellationToken);
                 if (httpResponseMessage.IsSuccessStatusCode)
                 {
-                    var content = await httpResponseMessage.Content.ReadAsStringAsync();
+                    var content = await httpResponseMessage.Content.ReadAsStringAsync(cancellationToken);
 
                     string s = content;
                     string[] values = s.Split(';');

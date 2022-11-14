@@ -1,5 +1,6 @@
 ﻿using Application.Dtos;
 using Application.IPs.Queries.GetIpDetailsByKey;
+using Application.IPs.Queries.GetReport;
 using Domain.Abstractions;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -13,23 +14,28 @@ namespace IpWebApi.Controllers
     [ApiController]
     public class IpController : ControllerBase
     {
-        
         private readonly IMediator _mediatr;
 
         public IpController(IMediator mediatr)
         {
-           
             _mediatr = mediatr;
         }
 
         // GET api/<IpController>/5
         [HttpGet("{ip}")]
-        public async Task<ActionResult<IpAdressCountryDto>> Get(string ip)
+        public async Task<ActionResult<IpResponse>> Get(string ip)
         {
             var query = new GetIpDetailsByKeyQuery(ip);
             var result = await _mediatr.Send(query);
             return result != null? (ActionResult) Ok(result): NotFound();
         }
 
+        [HttpGet("{codes}")]
+        public async Task<ActionResult<List<ReportResponse>>> GetReport(List<string> codes)
+        {
+            var query = new GetReportQuery(codes);
+            var result = await _mediatr.Send(query);
+            return result != null? (ActionResult) Ok(result): NotFound();
+        }
     }
 }
