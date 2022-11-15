@@ -1,27 +1,32 @@
 ﻿using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TimeTriggersFunctionApp.Interfaces;
+using TimeTriggersFunctionApp.Models;
 
 namespace TimeTriggersFunctionApp.HelperClasses
 {
-    internal class QueryExe
+    public class QueryExe
     {
         private string Q = "";
-        private string C = "";
+        private string C = Environment.GetEnvironmentVariable("IpDbConnStr");
         private int i = 0;
-        public QueryExe(string Q, string C, int i)
+        private readonly IIpDataApi _ipDataApi;
+        public QueryExe(string Q, string C, int i, IIpDataApi ipDataApi)
         {
             this.Q = Q;
             this.C = C;
             this.i = i;
+            _ipDataApi = ipDataApi;
         }
 
-        public List<int> GetId()
+        public async Task<List<IpCounty>> GetIpDiff()
         {
-            var result = new List<int>();
+            var result = new List<IpCounty>();
             try
             {
                 SqlConnection conn = new(C);
@@ -35,9 +40,21 @@ namespace TimeTriggersFunctionApp.HelperClasses
                     while (reader.Read())
                     {
                         //create an object here
+                        var ip = reader["IP"].ToString();
+                        var countryName = reader["CountryName"].ToString();
+                        var twoLetterCode = reader["TwoLetterCode"].ToString();
+                        var threeLetterCode = reader["ThreeLetterCode"].ToString();
+
+                        var myIpObject = new IpCounty(ip, twoLetterCode, threeLetterCode, countryName);
+                        //get api answer
+                        var apiResult = await _ipDataApi.GetIpDetails(ip);
+                        var apiIpObject = new IpCounty(ip, apiResult.TwoLetterCode, apiResult.ThreeLetterCode, apiResult.Name);
                         //compare with api answer
-                        //if api answer is diferent add instance in results
-                        result.Add(reader.GetInt32(0));
+                        if (!myIpObject.Equals(apiIpObject))
+                        {
+                            //if api answer is diferent add instance in results
+                            result.Add(apiIpObject);
+                        }
                     }
                 }
             }
