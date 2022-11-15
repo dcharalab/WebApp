@@ -19,7 +19,7 @@ namespace Infrastructure.Repositories
 
             using SqlConnection connection = new(connStr);
             string sql = "";
-            if (codes.Count == 0)
+            if (codes != null && codes.Count == 0)
             {
                 sql = "SELECT Countries.Name as countryName, COUNT(*) as addressesCount, MAX(IpAddresses.UpdatedAt) lastAdderssUpdated " +
                     "FROM IpAddresses " +
