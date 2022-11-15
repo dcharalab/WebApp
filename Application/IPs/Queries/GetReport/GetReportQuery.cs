@@ -8,8 +8,8 @@ namespace Application.IPs.Queries.GetReport
 {
     public class GetReportQuery: IRequest<List<ReportResponse>>
     {
-        public List<string>? Codes  { get;}
-        public GetReportQuery(List<string>? codes)
+        public List<string> Codes  { get;}
+        public GetReportQuery(List<string> codes)
         {
             Codes = codes;
         }

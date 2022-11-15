@@ -31,7 +31,7 @@ namespace IpWebApi.Controllers
         }
 
         [HttpGet("GetReport")]
-        public async Task<ActionResult<List<ReportResponse>>> GetReport([FromQuery] List<string>? codes)
+        public async Task<ActionResult<List<ReportResponse>>> GetReport([FromQuery] List<string> codes)
         {
             var query = new GetReportQuery(codes);
             var result = await _mediatr.Send(query);
