@@ -30,8 +30,8 @@ namespace IpWebApi.Controllers
             return result != null? (ActionResult) Ok(result): NotFound();
         }
 
-        [HttpGet("{codes}")]
-        public async Task<ActionResult<List<ReportResponse>>> GetReport(List<string> codes)
+        [HttpGet("GetReport")]
+        public async Task<ActionResult<List<ReportResponse>>> GetReport([FromQuery] List<string>? codes)
         {
             var query = new GetReportQuery(codes);
             var result = await _mediatr.Send(query);

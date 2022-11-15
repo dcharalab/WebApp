@@ -34,7 +34,7 @@ builder.Services.AddDbContext<IpdbContext>(
             dbContextOptionsBuilder.EnableDetailedErrors(databaseOptions.EnableDetailedErrors);
         }
     );
-
+builder.Services.AddScoped<IRawSqlIpRepository, RawSqlIpRepository>();
 builder.Services.AddScoped<IIpRepository, IpRepository>();
 builder.Services.Decorate<IIpRepository, CachedIpRepository>();
 

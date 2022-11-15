@@ -19,7 +19,7 @@ namespace Infrastructure.Repositories
 
             using SqlConnection connection = new(connStr);
             string sql = "";
-            if (codes == null)
+            if (codes.Count == 0)
             {
                 sql = "SELECT Countries.Name as countryName, COUNT(*) as addressesCount, MAX(IpAddresses.UpdatedAt) lastAdderssUpdated " +
                     "FROM IpAddresses " +
@@ -29,13 +29,19 @@ namespace Infrastructure.Repositories
             }
             else
             {
-                string combinedCodes = string.Join(",", codes);
+                string combinedCodes = "";
+                foreach (var c in codes)
+                {
+                    combinedCodes = combinedCodes + "'" + c + "',";
+                }
+                combinedCodes = combinedCodes.Remove(combinedCodes.Length - 1, 1);
+
                 sql = "SELECT Countries.Name as countryName, COUNT(*) as addressesCount, MAX(IpAddresses.UpdatedAt) lastAdderssUpdated " +
                     "FROM IpAddresses " +
                     "INNER JOIN Countries " +
                     "ON IpAddresses.CountryId = Countries.Id " +
-                    "WHERE Countries.TwoLetterCode IN " + combinedCodes +
-                    " GROUP BY Countries.Id, Countries.Name";
+                    "WHERE Countries.TwoLetterCode IN (" + combinedCodes +
+                    ") GROUP BY Countries.Id, Countries.Name";
             }
 
             // Create a SqlCommand object.
