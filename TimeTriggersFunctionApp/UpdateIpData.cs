@@ -2,35 +2,37 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using TimeTriggersFunctionApp.HelperClasses;
-using TimeTriggersFunctionApp.Interfaces;
 using TimeTriggersFunctionApp.Models;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace TimeTriggersFunctionApp
 {
     public class UpdateIpData
     {
-        private readonly IIpDataApi _ipDataApi;
-        public UpdateIpData(IIpDataApi ipDataApi)
+        public UpdateIpData()
         {
-            _ipDataApi = ipDataApi;
         }
         [FunctionName("UpdateIpData")]
-        public void Run([TimerTrigger("0 0 * * * * ")]TimerInfo myTimer, ILogger log)
+        public async Task Run([TimerTrigger("0 0 * * * * "
+            #if DEBUG
+            , RunOnStartup=true
+            #endif
+            )]TimerInfo myTimer)
         {
-            log.LogInformation($"C# Timer trigger function executed at: {DateTime.Now}");
 
             var result = new List<int>();
             var connStr = Environment.GetEnvironmentVariable("IpDbConnStr");
             try
             {
-                var sqlStr = "SELECT MIN(Id) as MinId, MAX(Id) as MaxId FROM IPAddresses";
+                var sqlStr = "SELECT COUNT(Id) as ct FROM IPAddresses";
                 SqlConnection conn = new(connStr);
                 SqlCommand command = new(sqlStr, conn);
                 command.CommandTimeout = 180;
@@ -42,8 +44,7 @@ namespace TimeTriggersFunctionApp
 
                     while (reader.Read())
                     {
-                        result.Add(Int32.Parse(reader["MinId"].ToString()));
-                        result.Add(Int32.Parse(reader["MaxId"].ToString()));
+                        result.Add(Int32.Parse(reader["ct"].ToString()));
                     }
                 }
             }
@@ -53,86 +54,84 @@ namespace TimeTriggersFunctionApp
             }
 
 
-            int MinId = result.Min();
-            int MaxId = result.Max();
-
-            int BatchCount = 100;
-            List<QueryExe> Alllist = new List<QueryExe>(BatchCount);
-            var stackOfChanges = new ConcurrentStack<IpCounty>();
-
-            int i = MinId;
-            int index = 0;
-            while (i < MaxId + 1)
+            int Count = result[0];
+            int OffSet = 0; //Next Time 100000
+            int FetchNext = 100; //Next Time 200000
+            var listOfChanges = new List<IpCountryCode>();
+            while (OffSet < Count)
             {
-                int minid = i;
-                int maxid = i + BatchCount;
-                string q = "select IP, Countries.Name as CountryName, TwoLetterCode, ThreeLetterCode "+
-                            "FROM IpAddresses inner join Countries on Countries.Id = IPAddresses.CountryId with(nolock) "+
-                            $" WHERE Id>={minid} and Id<{maxid} ";
-                string c = "";
-                i = maxid;
-                Alllist.Add(new QueryExe(q, c, index, _ipDataApi));
-                index++;
-            }
 
-            Parallel.ForEach(Alllist, new ParallelOptions { MaxDegreeOfParallelism = 100 }, async command =>
-            {
-                _ = Task.Yield();
-                var temp = await command.GetIpDiff();
+                string q = "select IP, Countries.Name as CountryName, TwoLetterCode, ThreeLetterCode " +
+                           "FROM IPAddresses inner join Countries on Countries.Id = IPAddresses.CountryId " +
+                            $"ORDER BY IPAddresses.Id OFFSET {OffSet} ROWS  FETCH NEXT {FetchNext} ROWS ONLY";
+                string c = Environment.GetEnvironmentVariable("IpDbConnStr");
+                
+                var qry = new QueryExe(q, c);
+                var temp = await qry.GetIpDiff();
                 if (temp?.Count > 0)
                 {
-                    stackOfChanges.PushRange(temp.ToArray());
+                    listOfChanges.AddRange(temp.ToArray());
                 }
-            });
+
+                OffSet += FetchNext;
+            }
             
 
-            if (!stackOfChanges.IsEmpty)
+            if (listOfChanges.Count>0)
             {
                 try
                 {
-                    foreach (var changedItem in stackOfChanges)
+                    SqlConnection conn = new(connStr);
+                    
+                    using (conn)
                     {
-                        var sqlStr = $"SELECT Id FROM Countries WHERE Countries.ThreeLetterCode = '{changedItem.ThreeLetterCode}'";
-                        SqlConnection conn = new(connStr);
-                        SqlCommand command = new(sqlStr, conn);
-                        command.CommandTimeout = 180;
-                        var resultCountyExists = new List<int>();
-                        using (conn)
+                        conn.Open();
+                        foreach (var changedItem in listOfChanges)
                         {
-                            conn.Open();
-                            using SqlDataReader reader = command.ExecuteReader();
+                            var resultCountyExists = new List<int>();
 
-                            while (reader.Read())
+                            using (SqlCommand command = new SqlCommand($"SELECT Id FROM Countries WHERE Countries.ThreeLetterCode = '{changedItem.ThreeLetterCode}'", conn))
                             {
-                                resultCountyExists.Add(Int32.Parse(reader["Id"].ToString()));
+                                using SqlDataReader reader = command.ExecuteReader();
+
+                                while (reader.Read())
+                                {
+                                    resultCountyExists.Add(Int32.Parse(reader["Id"].ToString()));
+                                }
+                                reader.Close();
                             }
 
                             if (resultCountyExists.Count > 0)
                             {
-                                var sqlUpdate = $"UPDATE IPAddresses SET CountryId = {resultCountyExists[0]} WHERE IP = '{changedItem.Ip}'";
-                                command = new(sqlUpdate, conn);
-                                command.ExecuteScalar();
+                                using (SqlCommand cmdUpd = new SqlCommand($"UPDATE IPAddresses SET CountryId = {resultCountyExists[0]} WHERE IP = '{changedItem.Ip}'", conn))
+                                {
+                                    cmdUpd.ExecuteScalar();
+                                }
                             }
                             else
                             {
-                                var sqlInsert = $"INSERT INTO Countries(Name, TwoLetterCode, ThreeLetterCode ) VALUES ('{changedItem.CountryName}', '{changedItem.TwoLetterCode}', '{changedItem.ThreeLetterCode}');";
-                                command = new(sqlInsert, conn);
-                                command.ExecuteScalar();
-
-                                var sqlSelect = $"SELECT Id FROM Countries WHERE Countries.ThreeLetterCode = '{changedItem.ThreeLetterCode}'";
-                                using SqlDataReader readerSelect = command.ExecuteReader();
-                                var resultList = new List<int>();
-                                while (readerSelect.Read())
+                                using (SqlCommand cmdIns = new SqlCommand($"INSERT INTO Countries(Name, TwoLetterCode, ThreeLetterCode ) VALUES ('{changedItem.CountryName}', '{changedItem.TwoLetterCode}', '{changedItem.ThreeLetterCode}');", conn))
                                 {
-                                    resultList.Add(Int32.Parse(reader["Id"].ToString()));
+                                    cmdIns.ExecuteScalar();
+                                }
+                                var resultList = new List<int>();
+                                using (SqlCommand cmdRead = new SqlCommand($"SELECT Id FROM Countries WHERE Countries.ThreeLetterCode = '{changedItem.ThreeLetterCode}'", conn))
+                                {
+                                    using SqlDataReader readerSelect = cmdRead.ExecuteReader();
+                                    while (readerSelect.Read())
+                                    {
+                                        resultList.Add(Int32.Parse(readerSelect["Id"].ToString()));
+                                    }
+                                    readerSelect.Close();
                                 }
 
                                 if (resultList.Count > 0)
                                 {
                                     var newCountryId = resultList[0];
-                                    var sqlUpdate = $"UPDATE IPAddresses SET CountryId = {newCountryId} WHERE IP = '{changedItem.Ip}'";
-                                    command = new(sqlUpdate, conn);
-                                    command.ExecuteScalar();
+                                    using (SqlCommand cmdUpd = new SqlCommand($"UPDATE IPAddresses SET CountryId = {newCountryId} WHERE IP = '{changedItem.Ip}'", conn))
+                                    {
+                                        cmdUpd.ExecuteScalar();
+                                    }
                                 }
                             }
                         }

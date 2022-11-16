@@ -8,21 +8,19 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using TimeTriggersFunctionApp.Interfaces;
 
 namespace TimeTriggersFunctionApp.HelperClasses
 {
-    public class IpDataApi : IIpDataApi
+    public class IpDataApi
     {
-        private readonly IHttpClientFactory _httpClientFactory;
-        public IpDataApi(IHttpClientFactory httpClientFactory)
+        public IpDataApi()
         {
-            _httpClientFactory = httpClientFactory;
         }
 
         public async Task<IpCountry> GetIpDetails(string ip)
         {
-            var httpClient = _httpClientFactory.CreateClient("ip2c");
+            using var httpClient = new HttpClient();
+            httpClient.BaseAddress = new Uri(Environment.GetEnvironmentVariable("ip2cURI"));
             var httpResponseMessage = await httpClient.GetAsync(ip);
 
             if (httpResponseMessage.IsSuccessStatusCode)

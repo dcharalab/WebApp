@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace TimeTriggersFunctionApp.Models
 {
-    public class IpCounty
+    public class IpCountryCode
     {
         public string Ip { get; set; }
         public string CountryName { get; set; }
@@ -16,7 +16,7 @@ namespace TimeTriggersFunctionApp.Models
 
         public string ThreeLetterCode { get; set; }
 
-        public IpCounty(string ip, string twoLetterCode, string threeLetterCode, string countryName)
+        public IpCountryCode(string ip, string twoLetterCode, string threeLetterCode, string countryName)
         {
             Ip = ip;
             CountryName = countryName;

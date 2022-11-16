@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using TimeTriggersFunctionApp.Interfaces;
 using TimeTriggersFunctionApp.Models;
 
 namespace TimeTriggersFunctionApp.HelperClasses
@@ -13,20 +12,17 @@ namespace TimeTriggersFunctionApp.HelperClasses
     public class QueryExe
     {
         private string Q = "";
-        private string C = Environment.GetEnvironmentVariable("IpDbConnStr");
+        private string C = "";
         private int i = 0;
-        private readonly IIpDataApi _ipDataApi;
-        public QueryExe(string Q, string C, int i, IIpDataApi ipDataApi)
+        public QueryExe(string Q, string C)
         {
             this.Q = Q;
             this.C = C;
-            this.i = i;
-            _ipDataApi = ipDataApi;
         }
 
-        public async Task<List<IpCounty>> GetIpDiff()
+        public async Task<List<IpCountryCode>> GetIpDiff()
         {
-            var result = new List<IpCounty>();
+            var result = new List<IpCountryCode>();
             try
             {
                 SqlConnection conn = new(C);
@@ -35,9 +31,9 @@ namespace TimeTriggersFunctionApp.HelperClasses
                 using (conn)
                 {
                     conn.Open();
-                    using SqlDataReader reader = command.ExecuteReader();
+                    using SqlDataReader reader = await command.ExecuteReaderAsync();
 
-                    while (reader.Read())
+                    while (await reader.ReadAsync())
                     {
                         //create an object here
                         var ip = reader["IP"].ToString();
@@ -45,16 +41,21 @@ namespace TimeTriggersFunctionApp.HelperClasses
                         var twoLetterCode = reader["TwoLetterCode"].ToString();
                         var threeLetterCode = reader["ThreeLetterCode"].ToString();
 
-                        var myIpObject = new IpCounty(ip, twoLetterCode, threeLetterCode, countryName);
+                        var myIpObject = new IpCountryCode(ip, twoLetterCode, threeLetterCode, countryName);
                         //get api answer
-                        var apiResult = await _ipDataApi.GetIpDetails(ip);
-                        var apiIpObject = new IpCounty(ip, apiResult.TwoLetterCode, apiResult.ThreeLetterCode, apiResult.Name);
-                        //compare with api answer
-                        if (!myIpObject.Equals(apiIpObject))
+                        var dataApi = new IpDataApi();
+                        var apiResult = await dataApi.GetIpDetails(ip);
+                        if (apiResult != null)
                         {
-                            //if api answer is diferent add instance in results
-                            result.Add(apiIpObject);
+                            var apiIpObject = new IpCountryCode(ip, apiResult.TwoLetterCode, apiResult.ThreeLetterCode, apiResult.Name);
+                            //compare with api answer
+                            if (!myIpObject.Equals(apiIpObject))
+                            {
+                                //if api answer is diferent add instance in results
+                                result.Add(apiIpObject);
+                            }
                         }
+
                     }
                 }
             }
