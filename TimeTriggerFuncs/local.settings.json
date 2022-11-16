@@ -1,0 +1,12 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet",
+    "IpDbConnStr": "Server=.\\SQLExpress;Database=IPdb;Trusted_Connection=true;TrustServerCertificate=True;",
+    "ip2cURI": "https://ip2c.org/",
+    "RedisConnStr": "127.0.0.1:6379",
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+  }
+}
