@@ -1,35 +1,28 @@
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Host;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Data.SqlClient;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 using TimeTriggersFunctionApp.HelperClasses;
 using TimeTriggersFunctionApp.Models;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
-namespace TimeTriggersFunctionApp
+namespace TimeTriggerFuncs
 {
     public class UpdateIpData
     {
+        private readonly ILogger _logger;
         private readonly IDistributedCache _cache;
-        public UpdateIpData(IDistributedCache cache)
+        public UpdateIpData(ILoggerFactory loggerFactory, IDistributedCache cache)
         {
+            _logger = loggerFactory.CreateLogger<UpdateIpData>();
             _cache = cache;
         }
-        [FunctionName("UpdateIpData")]
-        public async Task Run([TimerTrigger("0 0 * * * * "
-            #if DEBUG
-            , RunOnStartup=true
-            #endif
-            )]TimerInfo myTimer)
+
+        [Function("UpdateIpData")]
+        public async Task RunAsync([TimerTrigger("0 0 * * * *", RunOnStartup = true)] MyInfo myTimer)
         {
+            _logger.LogInformation($"C# Timer trigger function executed at: {DateTime.Now}");
+            _logger.LogInformation($"Next timer schedule at: {myTimer.ScheduleStatus.Next}");
 
             var result = new List<int>();
             var connStr = Environment.GetEnvironmentVariable("IpDbConnStr");
@@ -39,7 +32,7 @@ namespace TimeTriggersFunctionApp
                 SqlConnection conn = new(connStr);
                 SqlCommand command = new(sqlStr, conn);
                 command.CommandTimeout = 180;
-                
+
                 using (conn)
                 {
                     conn.Open();
@@ -68,7 +61,7 @@ namespace TimeTriggersFunctionApp
                            "FROM IPAddresses inner join Countries on Countries.Id = IPAddresses.CountryId " +
                             $"ORDER BY IPAddresses.Id OFFSET {OffSet} ROWS  FETCH NEXT {FetchNext} ROWS ONLY";
                 string c = Environment.GetEnvironmentVariable("IpDbConnStr");
-                
+
                 var qry = new QueryExe(q, c);
                 var temp = await qry.GetIpDiff();
                 if (temp?.Count > 0)
@@ -78,14 +71,14 @@ namespace TimeTriggersFunctionApp
 
                 OffSet += FetchNext;
             }
-            
 
-            if (listOfChanges.Count>0)
+
+            if (listOfChanges.Count > 0)
             {
                 try
                 {
                     SqlConnection conn = new(connStr);
-                    
+
                     using (conn)
                     {
                         conn.Open();
@@ -147,5 +140,21 @@ namespace TimeTriggersFunctionApp
                 }
             }
         }
+    }
+
+    public class MyInfo
+    {
+        public MyScheduleStatus ScheduleStatus { get; set; }
+
+        public bool IsPastDue { get; set; }
+    }
+
+    public class MyScheduleStatus
+    {
+        public DateTime Last { get; set; }
+
+        public DateTime Next { get; set; }
+
+        public DateTime LastUpdated { get; set; }
     }
 }

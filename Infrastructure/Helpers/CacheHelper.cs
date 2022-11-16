@@ -18,7 +18,7 @@ namespace Infrastructure.Helpers
         {
             var options = new DistributedCacheEntryOptions();
 
-            options.AbsoluteExpirationRelativeToNow = absoluteExpireTime ?? TimeSpan.FromSeconds(60); //set expiration time to 60sec 
+            options.AbsoluteExpirationRelativeToNow = absoluteExpireTime ?? TimeSpan.FromSeconds(120); //set expiration time to 120sec 
             options.SlidingExpiration = slidingExpireTime; //sets how much time is a not accessed entry allowed to live 
 
             var jsonData = JsonSerializer.Serialize(data);
