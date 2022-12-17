@@ -1,5 +1,7 @@
 # WebApp
 
+This app gets you details for a given Ip.
+
 For the whole project to work we have 2 main dependencies.
 1) SQLExpress, where IPdb exists.
    I have the latest DB backup in the folder DatabaseBackUp
