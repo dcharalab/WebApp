@@ -1,6 +1,7 @@
 # WebApp
 
 This app gets you details for a given Ip.
+Use of DDD - Clean Arch - Mediator Pattern - CQRS
 
 For the whole project to work we have 2 main dependencies.
 1) SQLExpress, where IPdb exists.
